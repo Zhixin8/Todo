@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jockiery每日待办事项</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
+        body {
+            background: #ffffff;
+            color: #000000;
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+        .task-card {
+            background: #ffffff;
+            border: 1px solid #e5e5e5;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .btn-transition {
+            transition: all 0.3s ease;
+        }
+        .btn-transition:hover {
+            transform: translateY(-1px);
+        }
+        .fade-transition {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .task-card {
+            background: #ffffff;
+            border: 1px solid #e5e5e5;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: center;
+            opacity: 1;
+        }
+        .task-card:hover {
+            transform: translateY(-2px) scale(1.01);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+        .task-card.new-task {
+            animation: slideIn 0.5s ease-out forwards;
+        }
+        .task-card.removing-task {
+            animation: fadeOut 0.3s ease-out forwards;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+        }
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .btn-transition {
+            transition: all 0.3s ease;
+        }
+        .btn-transition:hover {
+            transform: translateY(-1px);
+        }
+        .fade-transition {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .fade-enter {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        .fade-enter-active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+        .task-list-enter {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        .task-list-enter-active {
+            opacity: 1;
+            transform: translateX(0);
+            transition: all 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-[#f0f7ff]">
+    <div class="container mx-auto px-4 py-8 max-w-2xl">
+        <div class="bg-white rounded-xl shadow-sm p-8">
+            <h1 class="text-3xl font-bold mb-2 text-center text-black transform hover:scale-105 transition-transform duration-300 cursor-default">待办事项</h1>
+            <p id="date" class="text-gray-500 text-center mb-4 text-sm animate-fade-in opacity-0"></p>
+
+            <!-- 任务统计信息区域 -->
+            <div class="grid grid-cols-3 gap-4 mb-8">
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:border-gray-200 transition-all duration-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm font-medium text-gray-600">待办任务</h4>
+                        <span class="text-blue-500">📝</span>
+                    </div>
+                    <p id="pendingCount" class="text-2xl font-bold text-gray-800">0</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:border-gray-200 transition-all duration-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm font-medium text-gray-600">已完成</h4>
+                        <span class="text-green-500">✅</span>
+                    </div>
+                    <p id="completedCount" class="text-2xl font-bold text-gray-800">0</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:border-gray-200 transition-all duration-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm font-medium text-gray-600">完成率</h4>
+                        <span class="text-yellow-500">🎯</span>
+                    </div>
+                    <p id="completionRate" class="text-2xl font-bold text-gray-800">0%</p>
+                </div>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-2 mb-8">
+                <div id="progressBar" class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="space-y-4">
+                    <textarea id="newTaskInput" placeholder="添加新的待办事项..." class="w-full px-4 py-3 text-gray-600 text-sm bg-white/50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-300 focus:bg-white hover:border-gray-300 transition-all duration-200 h-24 resize-none"></textarea>
+                    
+                    <div class="flex flex-wrap gap-4">
+                        <div class="relative">
+                         
+                        </div>
+                    
+                        <div class="relative">
+                            <button id="dateButton" class="px-4 py-2 text-sm text-black bg-gray-100 rounded-lg hover:bg-gray-200 transition-all duration-300 flex items-center space-x-2 btn-transition">
+                                <span>📅</span>
+                                <span>日期</span>
+                            </button>
+                            <div id="datePicker" class="hidden absolute left-0 top-full mt-2 p-4 bg-white rounded-lg shadow-lg border border-gray-100 z-10 w-64">
+                                <div class="calendar">
+                                    <div class="calendar-header flex justify-between items-center mb-4">
+                                        <button id="prevMonth" class="text-gray-600 hover:text-gray-800">◀</button>
+                                        <div id="currentMonth" class="text-sm font-medium text-gray-700"></div>
+                                        <button id="nextMonth" class="text-gray-600 hover:text-gray-800">▶</button>
+                                    </div>
+                                    <div class="calendar-grid grid grid-cols-7 gap-1 text-center">
+                                        <div class="text-xs text-gray-500 py-1">日</div>
+                                        <div class="text-xs text-gray-500 py-1">一</div>
+                                        <div class="text-xs text-gray-500 py-1">二</div>
+                                        <div class="text-xs text-gray-500 py-1">三</div>
+                                        <div class="text-xs text-gray-500 py-1">四</div>
+                                        <div class="text-xs text-gray-500 py-1">五</div>
+                                        <div class="text-xs text-gray-500 py-1">六</div>
+                                    </div>
+                                    <div id="calendarDays" class="grid grid-cols-7 gap-1 text-center mt-1"></div>
+                                </div>
+                                <input type="hidden" id="taskDate">
+                            </div>
+                        </div>
+                    
+                        <div class="relative">
+                            <button id="tagButton" class="px-4 py-2 text-sm text-black bg-gray-100 rounded-lg hover:bg-gray-200 transition-all duration-300 flex items-center space-x-2 btn-transition">
+                                <span>🏷️</span>
+                                <span>标签</span>
+                            </button>
+                            <div id="tagPicker" class="hidden absolute left-0 top-full mt-2 p-4 bg-white rounded-lg shadow-lg border border-gray-100 z-10 w-64">
+                                <div class="space-y-2">
+                                    <button class="tag-btn w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg">⚡ 重要</button>
+                                    <button class="tag-btn w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg">🔥 紧急</button>
+                                    <button class="tag-btn w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg">⭐ 关键</button>
+                                  
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <button id="addTaskButton" class="px-6 py-2 bg-black text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-200 ml-auto btn-transition">添加</button>
+                    </div>
+                </div>
+               
+                <div class="space-y-8">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-medium text-gray-800">待办清单</h3>
+                            <p class="text-sm text-gray-500">拖拽调整顺序，点击完成任务</p>
+                        </div>
+                        <ul id="taskList" class="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                            <!-- 待办事项列表 -->
+                        </ul>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-medium text-gray-800">已完成清单</h3>
+                            <p class="text-sm text-gray-500">双击编辑可生成新任务</p>
+                        </div>
+                        <ul id="completedList" class="space-y-3">
+                            <!-- 已完成事项列表 -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-12 pb-8">
+        <div class="max-w-2xl mx-auto px-4">
+            <div class="border-t border-gray-200 pt-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-800 mb-4">💡 使用小贴士</h4>
+                        <ul class="space-y-2">
+                            <li class="text-sm text-gray-600 flex items-start">
+                                <span class="text-blue-500 mr-2">•</span>
+                                <span>点击复选框来标记完成</span>
+                            </li>
+                            <li class="text-sm text-gray-600 flex items-start">
+                                <span class="text-blue-500 mr-2">•</span>
+                                <span>通过拖拽来调整任务的优先级顺序</span>
+                            </li>
+                            <li class="text-sm text-gray-600 flex items-start">
+                                <span class="text-blue-500 mr-2">•</span>
+                                <span>双击已完成任务可编辑</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-800 mb-4">🎯 任务管理建议</h4>
+                        <ul class="space-y-2">
+                            <li class="text-sm text-gray-600 flex items-start">
+                                <span class="text-blue-500 mr-2">•</span>
+                                <span>将重要且紧急的任务放在列表顶部</span>
+                            </li>
+                            <li class="text-sm text-gray-600 flex items-start">
+                                <span class="text-blue-500 mr-2">•</span>
+                                <span>定期清理和整理已完成的任务</span>
+                            </li>
+                            <li class="text-sm text-gray-600 flex items-start">
+                                <span class="text-blue-500 mr-2">•</span>
+                                <span>保持任务描述简洁明了</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="text-center mt-8 space-y-2">
+                    <p class="text-xs text-gray-500">✨ 让每一天都更有条理 ✨</p>
+                    <p class="text-xs text-gray-400">每一个小目标的完成，都是通往成功的一步</p>
+                    <p class="text-xs text-gray-400">保持专注，持续行动，成就非凡</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dateElement = document.getElementById('date');
+            const newTaskInput = document.getElementById('newTaskInput');
+            const addTaskButton = document.getElementById('addTaskButton');
+            const taskList = document.getElementById('taskList');
+            const completedList = document.getElementById('completedList');
+
+            // 获取拖拽后的目标位置
+            function getDragAfterElement(container, y) {
+                const draggableElements = [...container.querySelectorAll('li:not(.opacity-50)')];
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = y - box.top - box.height / 2;
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+
+            // 设置拖拽目标区域
+            taskList.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(taskList, e.clientY);
+                const draggedItem = document.querySelector('.opacity-50');
+                if (draggedItem) {
+                    if (afterElement == null) {
+                        taskList.appendChild(draggedItem);
+                    } else {
+                        taskList.insertBefore(draggedItem, afterElement);
+                    }
+                    if (draggedItem.parentElement === completedList) {
+                        const checkbox = draggedItem.querySelector('input[type="checkbox"]');
+                        checkbox.checked = false;
+                        checkbox.disabled = false;
+                        draggedItem.classList.remove('text-gray-400');
+                    }
+                }
+            });
+
+            // 为已完成清单中的任务添加双击编辑功能
+            completedList.addEventListener('dblclick', function(e) {
+                const listItem = e.target.closest('li');
+                if (listItem) {
+                    const taskSpan = listItem.querySelector('span.text-sm.text-gray-700');
+                    if (taskSpan) {
+                        const originalText = taskSpan.textContent;
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.value = originalText;
+                        input.className = 'w-full px-2 py-1 text-sm text-gray-700 border rounded focus:outline-none focus:border-blue-500';
+                        
+                        // 替换原有文本为输入框
+                        taskSpan.replaceWith(input);
+                        input.focus();
+                        
+                        // 处理输入完成事件
+                        const handleComplete = () => {
+                            const newText = input.value.trim();
+                            if (newText !== '') {
+                                // 移除原有的已完成事项
+                                completedList.removeChild(listItem);
+                                // 创建新的待办事项
+                                addTask(newText);
+                            } else {
+                                // 如果输入为空，恢复原有文本
+                                input.replaceWith(taskSpan);
+                            }
+                        };
+                        
+                        input.addEventListener('blur', handleComplete);
+                        input.addEventListener('keypress', function(e) {
+                            if (e.key === 'Enter') {
+                                handleComplete();
+                            }
+                        });
+                    }
+                }
+            });
+
+            taskList.addEventListener('drop', function(e) {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(taskList, e.clientY);
+                const draggedItem = document.querySelector('.opacity-50');
+                if (draggedItem) {
+                    if (afterElement == null) {
+                        taskList.appendChild(draggedItem);
+                    } else {
+                        taskList.insertBefore(draggedItem, afterElement);
+                    }
+                    if (draggedItem.parentElement === completedList) {
+                        const checkbox = draggedItem.querySelector('input[type="checkbox"]');
+                        checkbox.checked = false;
+                        checkbox.disabled = false;
+                        draggedItem.classList.remove('text-gray-400');
+                    }
+                }
+            });
+
+           
+
+            // 显示今日日期
+            function displayDate() {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = now.getMonth() + 1;
+                const day = now.getDate();
+                const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+                const weekday = weekdays[now.getDay()];
+                dateElement.textContent = `${year}年${month}月${day}日 ${weekday}`;
+            }
+
+            displayDate();
+
+            // 添加待办事项函数
+            // 更新任务统计信息
+            function updateTaskStats() {
+                const pendingTasks = taskList.children.length;
+                const completedTasks = completedList.children.length;
+                const totalTasks = pendingTasks + completedTasks;
+                const completionPercentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+                document.getElementById('pendingCount').textContent = pendingTasks;
+                document.getElementById('completedCount').textContent = completedTasks;
+                document.getElementById('completionRate').textContent = `${completionPercentage}%`;
+                document.getElementById('progressBar').style.width = `${completionPercentage}%`;
+            }
+
+            function addTask(text) {
+                const taskText = text || newTaskInput.value.trim();
+                const taskDate = document.getElementById('taskDate').value;
+                if (taskText !== "") {
+                    // 检查待办清单是否已达到10个任务的限制
+                    if (taskList.children.length >= 10) {
+                        alert('待办清单已达到最大限制（10个任务）');
+                        return;
+                    }
+                    const finalTaskText = selectedTag ? `${taskText} ${selectedTag}` : taskText;
+                    const listItem = document.createElement('li');
+                    listItem.className = 'group flex items-center justify-between p-4 bg-white rounded-lg border border-gray-100 hover:border-gray-200 transition-all duration-200';
+                    listItem.draggable = true;
+                    listItem.addEventListener('dragstart', function(e) {
+                        e.dataTransfer.setData('text/plain', '');
+                        e.target.classList.add('opacity-50');
+                    });
+                    listItem.addEventListener('dragend', function(e) {
+                        e.target.classList.remove('opacity-50');
+                    });
+
+                    const taskContent = document.createElement('div');
+                    taskContent.className = 'flex items-center space-x-3 flex-1';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'w-5 h-5 text-blue-500 border-gray-300 rounded focus:ring-blue-200 transition-colors duration-200';
+                    checkbox.addEventListener('change', function() {
+                        if (this.checked) {
+                            listItem.classList.add('text-gray-400');
+                            // 移动到已完成列表
+                            setTimeout(() => {
+                                taskList.removeChild(listItem);
+                                checkbox.checked = true;
+                                checkbox.disabled = true;
+                                completedList.appendChild(listItem);
+                                updateTaskStats();
+                                checkCompletedListLimit(); // 检查并清理多余的已完成任务
+                            }, 300);
+                        } else {
+                            listItem.classList.remove('text-gray-400');
+                        }
+                    });
+
+                    const dateSpan = document.createElement('span');
+                    if (taskDate) {
+                        const formattedDate = new Date(taskDate).toLocaleDateString('zh-CN', {
+                            month: 'short',
+                            day: 'numeric'
+                        });
+                        dateSpan.textContent = formattedDate;
+                        dateSpan.className = 'text-xs text-gray-500';
+                    }
+
+                    const taskSpan = document.createElement('span');
+                    taskSpan.textContent = finalTaskText;
+                    taskSpan.className = 'text-sm text-gray-700';
+
+                    taskContent.appendChild(checkbox);
+                    taskContent.appendChild(dateSpan);
+                    taskContent.appendChild(taskSpan);
+                    listItem.appendChild(taskContent);
+                    taskList.appendChild(listItem);
+                    updateTaskStats();
+
+                    newTaskInput.value = "";
+                    document.getElementById('taskDate').value = "";
+                    // 重置日期按钮文本
+                    const dateText = document.querySelector('#dateButton span:last-child');
+                    dateText.textContent = "日期";
+                    selectedDate = null;
+                    // 重置标签按钮文本和选中状态
+                    const tagText = document.querySelector('#tagButton span:last-child');
+                    tagText.textContent = "标签";
+                    selectedTag = null;
+                }
+            }
+
+            
+            // 日期按钮点击事件
+            const dateButton = document.getElementById('dateButton');
+            const datePicker = document.getElementById('datePicker');
+            const currentMonthElement = document.getElementById('currentMonth');
+            const calendarDaysElement = document.getElementById('calendarDays');
+            const prevMonthButton = document.getElementById('prevMonth');
+            const nextMonthButton = document.getElementById('nextMonth');
+            const taskDateInput = document.getElementById('taskDate');
+
+            let currentDate = new Date();
+            let selectedDate = null;
+
+            function updateCalendar() {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                
+                // 更新月份显示
+                currentMonthElement.textContent = `${year}年${month + 1}月`;
+                
+                // 清空日历
+                calendarDaysElement.innerHTML = '';
+                
+                // 获取当月第一天和最后一天
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                
+                // 添加空白格子
+                for (let i = 0; i < firstDay.getDay(); i++) {
+                    const emptyDay = document.createElement('div');
+                    emptyDay.className = 'text-center py-1';
+                    calendarDaysElement.appendChild(emptyDay);
+                }
+                
+                // 添加日期
+                for (let day = 1; day <= lastDay.getDate(); day++) {
+                    const dayElement = document.createElement('button');
+                    dayElement.className = 'text-sm py-1 w-full rounded hover:bg-gray-100 transition-colors';
+                    dayElement.textContent = day;
+                    
+                    const currentDateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    if (selectedDate === currentDateString) {
+                        dayElement.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-600');
+                    }
+                    
+                    dayElement.addEventListener('click', () => {
+                        taskDateInput.value = currentDateString;
+                        selectedDate = currentDateString;
+                        updateCalendar();
+                        datePicker.classList.add('hidden');
+                        // 更新日期按钮文本
+                        const dateText = document.querySelector('#dateButton span:last-child');
+                        dateText.textContent = `${year}年${month + 1}月${day}日`;
+                    });
+                    
+                    calendarDaysElement.appendChild(dayElement);
+                }
+            }
+
+            // 上个月按钮点击事件
+            prevMonthButton.addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() - 1);
+                updateCalendar();
+            });
+
+            // 下个月按钮点击事件
+            nextMonthButton.addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                updateCalendar();
+            });
+
+            dateButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                datePicker.classList.toggle('hidden');
+                if (!datePicker.classList.contains('hidden')) {
+                    updateCalendar();
+                }
+                // 隐藏其他面板
+                emojiPicker.classList.add('hidden');
+                tagPicker.classList.add('hidden');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!datePicker.contains(e.target) && e.target !== dateButton) {
+                    datePicker.classList.add('hidden');
+                }
+            });
+
+            // 标签按钮点击事件
+            const tagButton = document.getElementById('tagButton');
+            const tagPicker = document.getElementById('tagPicker');
+            const tagButtons = document.querySelectorAll('.tag-btn');
+
+            tagButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                tagPicker.classList.toggle('hidden');
+                // 隐藏其他面板
+                emojiPicker.classList.add('hidden');
+                datePicker.classList.add('hidden');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!tagPicker.contains(e.target) && e.target !== tagButton) {
+                    tagPicker.classList.add('hidden');
+                }
+            });
+
+            let selectedTag = '';
+
+            tagButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tag = btn.textContent;
+                    selectedTag = tag;
+                    // 更新标签按钮文本
+                    const tagText = document.querySelector('#tagButton span:last-child');
+                    tagText.textContent = tag;
+                    tagPicker.classList.add('hidden');
+                });
+            });
+
+            
+            document.addEventListener('click', (e) => {
+                if (!emojiPicker.contains(e.target) && e.target !== emojiButton) {
+                    emojiPicker.classList.add('hidden');
+                }
+            });
+
+            document.querySelectorAll('.emoji-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const emoji = btn.textContent;
+                    const input = document.getElementById('newTaskInput');
+                    const cursorPos = input.selectionStart;
+                    const textBefore = input.value.substring(0, cursorPos);
+                    const textAfter = input.value.substring(cursorPos);
+                    input.value = textBefore + emoji + textAfter;
+                    input.focus();
+                    const newCursorPos = cursorPos + emoji.length;
+                    input.setSelectionRange(newCursorPos, newCursorPos);
+                    emojiPicker.classList.add('hidden');
+                });
+            });
+
+            // 添加按钮点击事件监听器
+            addTaskButton.addEventListener('click', () => addTask());
+
+            // 输入框回车事件监听器
+            newTaskInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    addTask();
+                }
+            });
+
+            // 默认生成的待办事项
+            const defaultTasks = [
+                "📚 阅读一本新书",
+                "🏃‍♂️ 晨跑30分钟",
+                "🍎 吃一顿健康早餐",
+                "📝 完成一篇文章",
+               
+            ];
+
+            defaultTasks.forEach(task => addTask(task));
+        });
+    </script>
+</body>
+</html>
+
+<script>
+    function checkCompletedListLimit() {
+        const maxCompletedTasks = 5;
+        const completedTasks = completedList.children;
+        while (completedTasks.length > maxCompletedTasks) {
+            completedList.removeChild(completedTasks[completedTasks.length - 1]);
+        }
+    }
+</script>
